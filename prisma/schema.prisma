@@ -1,0 +1,230 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  profile      Profile?
+
+  //relations
+  friendshipsA   Friendship[]    @relation("A")
+  friendshipsB   Friendship[]    @relation("B")
+  createdStreaks Streak[]        @relation("StreakCreatedBy")
+  goals          Goal[]
+  checkins       GoalCheckin[]
+  streakMembers  StreakMember[]
+  messages       Message[]
+  notifications  Notification[]
+  refreshTokens  RefreshToken[]
+  streakCheckins StreakCheckin[]
+  chatMemberS    ChatMember[]
+  rankingEntries RankingEntry[]
+}
+
+model Profile {
+  id        String  @id @default(cuid())
+  userId    String  @unique
+  fullName  String?
+  avatarUrl String?
+  bio       String?
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Goal {
+  id          String         @id @default(cuid())
+  userId      String
+  title       String
+  description String?
+  categoryId  String?
+  targetType  GoalTargetType // e.g., DAILY, WEEKLY, COUNT, BOOLEAN
+  targetValue Int? // para metas cuantitativas
+  startDate   DateTime
+  endDate     DateTime?
+  isArchived  Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category ActivityCategory? @relation(fields: [categoryId], references: [id])
+  checkins GoalCheckin[]
+}
+
+enum GoalTargetType {
+  DAILY
+  WEEKLY
+  COUNT
+  BOOLEAN
+}
+
+model GoalCheckin {
+  id        String   @id @default(cuid())
+  goalId    String
+  userId    String
+  date      DateTime // fecha de cumplimiento (normalizada a día)
+  value     Int? // cantidad cumplida si aplica
+  done      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  //relaciones
+  goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([goalId, date], name: "unique_goal_day")
+}
+
+model ActivityCategory {
+  id    String  @id @default(cuid())
+  name  String  @unique
+  color String?
+  goals Goal[]
+}
+
+// Amistades (bidireccional con estado)
+model Friendship {
+  id        String           @id @default(cuid())
+  aId       String
+  bId       String
+  status    FriendshipStatus @default(PENDING)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  a         User             @relation("A", fields: [aId], references: [id], onDelete: Cascade)
+  b         User             @relation("B", fields: [bId], references: [id], onDelete: Cascade)
+
+  @@unique([aId, bId])
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  BLOCKED
+}
+
+// Rachas (grupos/cohortes)
+model Streak {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  startDate   DateTime
+  endDate     DateTime?
+  ruleJson    Json // reglas/criterios de evaluación
+  createdById String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  createdBy User            @relation("StreakCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  members   StreakMember[]
+  checkins  StreakCheckin[]
+  chatRooms ChatRoom[]
+}
+
+model StreakMember {
+  id       String     @id @default(cuid())
+  streakId String
+  userId   String
+  joinedAt DateTime   @default(now())
+  role     StreakRole @default(MEMBER)
+  streak   Streak     @relation(fields: [streakId], references: [id], onDelete: Cascade)
+  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([streakId, userId])
+}
+
+enum StreakRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+model StreakCheckin {
+  id        String   @id @default(cuid())
+  streakId  String
+  userId    String
+  date      DateTime
+  done      Boolean  @default(false)
+  metadata  Json?
+  createdAt DateTime @default(now())
+  streak    Streak   @relation(fields: [streakId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([streakId, userId, date], name: "unique_streak_user_day")
+}
+
+// Chat (por racha o DM)
+model ChatRoom {
+  id        String   @id @default(cuid())
+  isDirect  Boolean  @default(false)
+  streakId  String?
+  createdAt DateTime @default(now())
+
+  streak   Streak?      @relation(fields: [streakId], references: [id], onDelete: Cascade)
+  members  ChatMember[]
+  messages Message[]
+}
+
+model ChatMember {
+  id       String   @id @default(cuid())
+  roomId   String
+  userId   String
+  joinedAt DateTime @default(now())
+
+  room ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  roomId    String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+
+  room ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Rankings (snapshots periódicos)
+model RankingEntry {
+  id        String   @id @default(cuid())
+  period    String // e.g., 2025-W37, 2025-09, 2025-Q3
+  userId    String
+  score     Int
+  extra     Json?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([period, score])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  type      String
+  payload   Json
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String // guarda hash del refresh
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
