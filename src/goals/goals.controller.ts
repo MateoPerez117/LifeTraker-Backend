@@ -10,9 +10,9 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { GoalsService } from './goals.service';
-import type { CreateGoalDto } from './dto/create-goal.dto';
-import type { UpdateGoalDto } from './dto/update-goal.dto';
-import type { ListGoalsDto } from './dto/list-goals.dto';
+import { CreateGoalDto } from './dto/create-goal.dto';
+import { UpdateGoalDto } from './dto/update-goal.dto';
+import { ListGoalsDto } from './dto/list-goals.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CurrentUser } from 'src/auth/decorator/current-user.decorator';
 
