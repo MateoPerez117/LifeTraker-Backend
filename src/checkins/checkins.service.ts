@@ -135,4 +135,36 @@ export class CheckinsService {
     if (current.userId !== userId) throw new ForbiddenException();
     return this.prisma.goalCheckin.delete({ where: { id } });
   }
+
+    async findToday(userId: string, dateStr?: string) {
+    const base = dateStr ? new Date(dateStr) : new Date();
+
+    const start = new Date(
+      base.getFullYear(),
+      base.getMonth(),
+      base.getDate(),
+      0, 0, 0, 0,
+    );
+
+    const end = new Date(
+      base.getFullYear(),
+      base.getMonth(),
+      base.getDate() + 1,
+      0, 0, 0, 0,
+    );
+
+    return this.prisma.goalCheckin.findMany({
+      where: {
+        userId,
+        date: {
+          gte: start,
+          lt: end,
+        },
+      },
+      orderBy: { date: 'asc' },
+      include: {
+        goal: true, // opcional, pero suele ser útil
+      },
+    });
+  }
 }

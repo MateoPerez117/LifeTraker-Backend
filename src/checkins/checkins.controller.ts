@@ -21,6 +21,14 @@ export class CheckinsController {
     return this.checkinsService.findAll(userId, q);
   }
 
+  @Get('today')
+  findToday(
+  @CurrentUser('sub') userId: string,
+  @Query('date') date?: string, // opcional, por si algún día quieres pasar fecha manual
+  ) {
+    return this.checkinsService.findToday(userId, date);
+  }
+
   @Get(':id')
   findOne(@CurrentUser('sub') userId: string, @Param('id') id: string) {
     return this.checkinsService.findOne(userId, id);
@@ -35,4 +43,5 @@ export class CheckinsController {
   remove(@CurrentUser('sub') userId: string, @Param('id') id: string) {
     return this.checkinsService.remove(userId, id);
   }
+
 }

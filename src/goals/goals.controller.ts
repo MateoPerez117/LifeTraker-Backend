@@ -24,7 +24,6 @@ export class GoalsController {
 
   @Post()
   create(@CurrentUser('sub') userId: string, @Body() dto: CreateGoalDto) {
-    // 👇 ya NO usamos dto.userId ni headers
     return this.goalsService.create(userId, dto);
   }
 

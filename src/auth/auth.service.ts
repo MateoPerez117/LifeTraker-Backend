@@ -63,6 +63,18 @@ export class AuthService {
     };
   }
 
+    async me(payload: JwtPayload) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Usuario no encontrado');
+    }
+
+    return this.getPublicUser(user);
+  }
+
   async signup(dto: SignupDto) {
     const existing = await this.prisma.user.findFirst({
       where: {
@@ -104,8 +116,12 @@ export class AuthService {
       where: { email: dto.email },
     });
 
-    if (!user) throw new UnauthorizedException('Credenciales inválidas');
+    if (!user) {
+      console.log(user)
+      throw new UnauthorizedException('Credenciales inválidas');
+    }
 
+    console.log(user)
     const valid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!valid) throw new UnauthorizedException('Credenciales inválidas');
 
